@@ -42,14 +42,14 @@
     },
     {
       "name": "cross-chain",
-      "description": "Cross-chain interoperability patterns for Hedera — Axelar GMP and LayerZero V2 OFT send/receive, gas/peer wiring, and bridge patterns to EVM destinations",
+      "description": "Cross-chain interoperability patterns for Hedera — Axelar GMP, LayerZero V2 OFT send/receive, and Chainlink CCIP burn-and-mint CCT, with gas/peer/selector wiring and bridge patterns to EVM destinations",
       "version": "1.0.0",
       "author": {
         "name": "Hedera Dev"
       },
       "source": "./plugins/cross-chain",
       "category": "development",
-      "keywords": ["hedera", "axelar", "gmp", "layerzero", "oft", "oapp", "cross-chain", "bridge", "interop", "solidity"]
+      "keywords": ["hedera", "axelar", "gmp", "layerzero", "oft", "oapp", "ccip", "cct", "cross-chain", "bridge", "interop", "solidity"]
     },
     {
       "name": "native-services-js",

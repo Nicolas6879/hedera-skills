@@ -116,12 +116,13 @@ Hedera price oracle integrations — one skill per provider, matching the cross-
 
 ### cross-chain
 
-Cross-chain interoperability patterns for Hedera — Axelar GMP and LayerZero V2 OFT bridges, with peer/gas wiring, allowlisting, and bridge-agnostic orchestration seams.
+Cross-chain interoperability patterns for Hedera — Axelar GMP, LayerZero V2 OFT, and Chainlink CCIP CCT bridges, with peer/gas/selector wiring, allowlisting, and bridge-agnostic orchestration seams.
 
 **Skills included:**
 
 - **axelar-gmp** — Axelar Gateway `callContract`, gas service payment, `AxelarExecutable` receivers, Hedera↔EVM wiring, and `IBridgeSender` / handler split (as used by cross-chain DCA orchestration + HSS).
 - **layerzero-messaging** — LayerZero V2 OFT / OApp on Hedera: Endpoint peers, ULN/DVN/executor config, `quoteSend`/`send`, and HTS-backed connector OFTs (mint/burn via `0x167`).
+- **ccip** — Chainlink CCIP burn-and-mint Cross-Chain Tokens: chain selectors, TokenAdminRegistry, `ccipSend`, and Hedera HTS-backed wrappers vs vanilla ERC-20. Not Data Feeds.
 
 **Use when:**
 
@@ -133,12 +134,16 @@ Cross-chain interoperability patterns for Hedera — Axelar GMP and LayerZero V2
 - Building Hedera↔EVM OFT bridges with LayerZero V2
 - Configuring `setPeer`, send/receive libraries, and enforced options
 - Implementing HTS connector OFTs (burn on send / mint on receive)
+- Bridging burn-and-mint tokens with Chainlink CCIP
+- Registering CCIP token pools and wiring remote chain selectors
+- Using an HTS-backed CCIP wrapper (users hold native HTS; CCIP sees the wrapper)
 
 **References included:**
 
-- `examples.md` - Sender, receiver, orchestrator, executor, OFT, and wire skeletons
+- `examples.md` - Sender, receiver, orchestrator, executor, OFT, CCIP register/wire/send, and HTS dual-approve skeletons
 - `hedera-axelar.md` - Testnet gateway/gas addresses, Axelar chain names, env vars
 - `hedera-endpoints.md` - LayerZero EIDs, Endpoint V2, ULN, DVN, and executor addresses
+- `hedera-ccip.md` - CCIP selectors vs chain IDs, router/registry lookup, HTS wrapper notes
 
 ### native-services-js
 
@@ -294,7 +299,10 @@ hedera-skills/
 │   │       ├── axelar-gmp/
 │   │       │   ├── SKILL.md
 │   │       │   └── references/
-│   │       └── layerzero-messaging/
+│   │       ├── layerzero-messaging/
+│   │       │   ├── SKILL.md
+│   │       │   └── references/
+│   │       └── ccip/
 │   │           ├── SKILL.md
 │   │           └── references/
 │   ├── native-services-js/   # Hedera native services + x402 payments
