@@ -202,22 +202,23 @@ Two skills for Hedera hackathon participants: project planning and submission va
 
 ### hedera-harness
 
-Three skills for creating and reviewing [hedera-harness](https://github.com/hedera-dev/hedera-harness) specs — the PRD, spec file, validators, Playwright smoke, and acceptance contract (oracle) that drive Scaffold HBAR template generation. Compatible with any AI coding agent that supports skills.
+Three skills for creating and reviewing [hedera-harness](https://github.com/hedera-dev/hedera-harness) recipes — the PRD, recipe file, validators, Playwright smoke, and evaluate checklist that drive in-place Scaffold HBAR feature work. Schema v3. Works in Claude Code (marketplace plugin) and Cursor / other skill-capable agents.
 
 **Skills included:**
 
-- **harness-spec-anatomy** — Shared vocabulary (spec / slug / blind / oracle / gate / needle). Single source of truth for file layout and the mechanical `check-spec.sh` script.
-- **create-harness-spec** — Grills a product idea one question at a time, then emits a gate 0–1 spec (optional deeper gates). Prefers Matt Pocock `/grilling` when available.
-- **review-harness-spec** — Two-axis audit (Wiring via `check-spec.sh` + Oracle judgment) before a run.
+- **harness-spec-anatomy** — Shared vocabulary (recipe / slug / blind / evaluate checklist / stage / needle). Single source of truth for file layout and the mechanical `check-spec.sh` script.
+- **create-harness-spec** — Grills a product idea one question at a time, then emits an ASSERT recipe (optional SMOKE / EVALUATE / CHAIN). Prefers Matt Pocock `/grilling` when available; Claude Code uses the inline protocol.
+- **review-harness-spec** — Two-axis audit (Wiring via `check-spec.sh` + Eval judgment) before a run.
 
 **Use when:**
 
-- Turning a Hedera demo idea into hedera-harness inputs
-- Writing a harness PRD, spec file, or acceptance contract
-- Reviewing a harness spec before `harness run`
-- Deciding which validation gates to enable and in what order
+- Turning a Hedera feature idea into hedera-harness inputs
+- Writing a harness PRD, recipe file, or evaluate checklist
+- Reviewing a harness recipe before `hedera-harness run`
+- Deciding which validation stages to enable and in what order
+- Splitting a feature into ordered `prd:` / `eval:` increments
 
-**Important:** These are **authoring** skills. Do not list them in a template spec file's `skills:` field — that list is vendored into generator workspaces. Use existing index names (`hedera-consensus-service`, `hts-system-contract`, …) there instead.
+**Important:** These are **authoring** skills. Recipes do not list skills — product plugins are discovered per run and the generator picks. Keep authoring skills as marketplace plugins.
 
 ### dev-intelligence
 

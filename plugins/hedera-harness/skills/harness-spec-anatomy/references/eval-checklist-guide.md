@@ -1,26 +1,30 @@
-# Acceptance contract guide
+# Evaluate checklist guide
 
-The acceptance contract is the **oracle** for tier 3. The semantic validator
-grades the running app against these assertions — not the raw PRD. Keep the
-run **blind**. Default path is `.harness/acceptance-contract.json`.
-Terms: [GLOSSARY.md](../GLOSSARY.md).
+The **evaluate checklist** is what EVALUATE grades — numbered, browser-verifiable
+assertions, not the raw PRD. Keep the run **blind**. Default path is
+`.harness/eval.json`. Terms: [GLOSSARY.md](../GLOSSARY.md).
 
-The harness does not ship an acceptance-contract skeleton — the worked example
-below is the reference. Enable it with **both** keys, or the tier is
-misconfigured:
+Enable it with **both** keys, or the stage is misconfigured:
 
 ```yaml
-contract: .harness/acceptance-contract.json
+eval: .harness/eval.json
 validator:
   enabled: true
 ```
 
-Set `"prd"` to the PRD path (`.harness/prd.md`, or the specific increment file
-when `prd:` is a list).
+For increments, list checklists 1:1 with `prd:`:
+
+```yaml
+eval:
+  - .harness/evals/01-foundation.json
+  - .harness/evals/02-ui.json
+```
+
+Set `"prd"` inside each JSON to the matching PRD path.
 
 ## Derive assertions from PRD journeys
 
-1. List each journey from the PRD.
+1. List each journey from the matching PRD.
 2. For each journey, write 1–3 assertions that a browser agent can verify.
 3. Prefer few **critical** assertions (app loads; core journey possible).
 4. Put deep product semantics here — not in the Playwright smoke YAML.
@@ -29,15 +33,17 @@ when `prd:` is a list).
 
 | Field | Purpose |
 |-------|---------|
-| `id` | Stable id (`C1`, `C2`, …) — repair prompts cite these |
+| `id` | Stable id (`E1`, `E2`, …) — repair prompts cite these |
 | `journey` | Human label matching a PRD journey |
 | `route` | Path the validator should visit |
 | `severity` | `critical` \| `major` \| `minor` |
 | `walletRequired` | Whether the flow needs a wallet |
 | `verifiableWithoutCredentials` | Can pass with no `.env` / funded account |
-| `executableWithTestSigner` | Only with tier 3.5 `chainValidation`; run real tx + mirror check |
+| `executableWithTestSigner` | Only with CHAIN `chainValidation`; run real tx + mirror check |
 | `statement` | What must be true |
 | `howToVerify` | Concrete browser (and mirror) steps |
+
+Do not use `C1` / `C2` — that prefix was the v2 acceptance-contract id.
 
 ## evaluationRules posture
 
@@ -65,11 +71,11 @@ PRD journeys: browse empty feed; wallet-gated "post message".
 
 ```json
 {
-  "name": "hcs-feed-acceptance",
+  "name": "hcs-feed-eval",
   "template": "hcs-feed",
   "prd": ".harness/prd.md",
   "version": 1,
-  "description": "Browser-verifiable acceptance contract for hcs-feed.",
+  "description": "Evaluate checklist for hcs-feed.",
   "routes": ["/", "/feed"],
   "evaluationRules": {
     "posture": "adversarial",
@@ -86,7 +92,7 @@ PRD journeys: browse empty feed; wallet-gated "post message".
   },
   "assertions": [
     {
-      "id": "C1",
+      "id": "E1",
       "journey": "Open the demo",
       "route": "/",
       "severity": "critical",
@@ -96,7 +102,7 @@ PRD journeys: browse empty feed; wallet-gated "post message".
       "howToVerify": "Navigate to /. Confirm primary content is visible and the browser console shows no uncaught errors or crash banners (Internal Server Error, Application error, Unhandled Runtime Error)."
     },
     {
-      "id": "C2",
+      "id": "E2",
       "journey": "Browse feed",
       "route": "/feed",
       "severity": "major",
@@ -106,7 +112,7 @@ PRD journeys: browse empty feed; wallet-gated "post message".
       "howToVerify": "Navigate to /feed. Confirm empty-state or list UI is visible; no crash banners."
     },
     {
-      "id": "C3",
+      "id": "E3",
       "journey": "Wallet-gated post",
       "route": "/feed",
       "severity": "major",
@@ -120,4 +126,4 @@ PRD journeys: browse empty feed; wallet-gated "post message".
 ```
 
 Add a fourth assertion with `"executableWithTestSigner": true` only when enabling
-`chainValidation` (tier 3.5).
+`chainValidation` (CHAIN).

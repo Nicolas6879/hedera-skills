@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# check-spec.sh — coherence checks for a hedera-harness recipe (schemaVersion 2).
+# check-spec.sh — coherence checks for a hedera-harness recipe (schemaVersion 3).
 #
 # Two layers:
 #   1. `hedera-harness doctor --recipe-only` owns schema, defaults, baseline,
 #      and network validity. It is authoritative; this script does not
 #      re-implement it.
 #   2. Local checks for cross-file coherence doctor does not perform — most
-#      importantly the tier-3 contract/validator pairing, which doctor passes.
+#      importantly the EVALUATE eval/validator pairing, which doctor passes.
 #
 # Line-oriented only (grep/awk). No YAML/JSON parser. Treat findings as leads.
 #
@@ -41,7 +41,6 @@ fi
 
 # --- helpers -----------------------------------------------------------------
 
-# First non-comment scalar value for a top-level-ish YAML key.
 yaml_scalar() {
   local file="$1" key="$2"
   grep -E "^[[:space:]]*${key}:[[:space:]]*[^[:space:]]" "$file" 2>/dev/null \
@@ -50,12 +49,10 @@ yaml_scalar() {
     | sed -E "s/^[[:space:]]*${key}:[[:space:]]*//; s/[\"']//g; s/[[:space:]]+#.*//; s/[[:space:]]*$//"
 }
 
-# True if an uncommented line matching pattern exists.
 has_active() {
   grep -E "$2" "$1" 2>/dev/null | grep -v '^[[:space:]]*#' | grep -q .
 }
 
-# True if `enabled: true` appears inside the given top-level block.
 block_enabled() {
   awk -v key="$2" '
     /^[[:space:]]*#/ { next }
@@ -66,7 +63,6 @@ block_enabled() {
   ' "$1"
 }
 
-# Resolve a path key, falling back to the v2 default when the key is absent.
 resolve_path() {
   local key="$1" default="$2" value
   value="$(yaml_scalar "$SPEC_FILE" "$key")"
@@ -74,11 +70,30 @@ resolve_path() {
   echo "$ROOT/$value"
 }
 
+# Collect YAML list items under a top-level key, or a scalar if present.
+# Prints paths relative to the project (not rooted).
+collect_paths() {
+  local key="$1" default="$2"
+  local scalar
+  scalar="$(yaml_scalar "$SPEC_FILE" "$key")"
+  if [[ -n "$scalar" ]]; then
+    echo "$scalar"
+    return
+  fi
+  awk -v k="$key" '
+    /^[[:space:]]*#/ { next }
+    $0 ~ "^[[:space:]]*" k ":[[:space:]]*$" { in_p=1; next }
+    in_p && /^[[:space:]]*-[[:space:]]*/ {
+      sub(/^[[:space:]]*-[[:space:]]*/, ""); gsub(/["'\'']/, ""); print; next
+    }
+    in_p { exit }
+  ' "$SPEC_FILE"
+}
+
 # --- layer 1: delegate schema validity to the harness -------------------------
 
 echo "== recipe (hedera-harness doctor --recipe-only) =="
 
-# Prefer a harness on PATH, else one installed in the project.
 DOCTOR_OUT=""
 DOCTOR_RC=0
 if command -v hedera-harness >/dev/null 2>&1; then
@@ -94,7 +109,6 @@ if [[ "$DOCTOR_RC" -eq 127 ]]; then
   note "hedera-harness not on PATH and not installed in $ROOT — schema not validated."
   note "Install it, or run: npx hedera-harness@latest doctor .harness/spec.yaml --recipe-only"
 elif grep -q 'Expected command' <<<"$DOCTOR_OUT"; then
-  # A pre-1.2.0 harness has no `doctor` verb.
   DEGRADED=1
   note "the installed hedera-harness is older than 1.2.0 (no 'doctor' command) — schema not validated."
   note "Upgrade it, or run: npx hedera-harness@latest doctor .harness/spec.yaml --recipe-only"
@@ -104,10 +118,9 @@ else
 fi
 
 if [[ "$DEGRADED" -eq 1 ]]; then
-  # Minimal stand-in so an unusable CLI does not hide an obviously broken recipe.
   SCHEMA="$(yaml_scalar "$SPEC_FILE" "schemaVersion")"
-  if [[ "$SCHEMA" != "2" ]]; then
-    fail "schemaVersion is '${SCHEMA:-absent}', expected 2 — run: hedera-harness migrate"
+  if [[ "$SCHEMA" != "3" ]]; then
+    fail "schemaVersion is '${SCHEMA:-absent}', expected 3 — rewrite the recipe (hedera-harness migrate is gone)"
   fi
   if ! has_active "$SPEC_FILE" '^[[:space:]]*baseline:'; then
     fail "recipe requires a baseline: block"
@@ -125,39 +138,34 @@ fi
 echo
 echo "== coherence =="
 
-# --- removed-in-v2 keys -------------------------------------------------------
+# --- removed keys -------------------------------------------------------------
 
-for dead in seed generator logging extend; do
+for dead in seed generator logging extend contract skills; do
   if has_active "$SPEC_FILE" "^[[:space:]]*${dead}:"; then
-    fail "'${dead}:' was removed in schema v2 — run: hedera-harness migrate .harness/spec.yaml"
+    case "$dead" in
+      contract) fail "'contract:' was renamed — use eval: (schema v3)" ;;
+      skills) fail "'skills:' was removed — product skills from hedera-skills are loaded automatically" ;;
+      *) fail "'${dead}:' was removed — rewrite to schemaVersion 3 (hedera-harness migrate is gone)" ;;
+    esac
   fi
 done
 
-# --- resolve the recipe's files (honouring v2 defaults) -----------------------
+# --- resolve files ------------------------------------------------------------
 
 STATIC="$(resolve_path static .harness/validators/static.json)"
 COMMANDS="$(resolve_path commands .harness/validators/yarn.json)"
-CONTRACT_REL="$(yaml_scalar "$SPEC_FILE" "contract")"
 PLAY_REL="$(yaml_scalar "$SPEC_FILE" "playwright")"
 
-# `prd` may be a scalar or a list of increments.
 PRDS=()
-PRD_SCALAR="$(yaml_scalar "$SPEC_FILE" "prd")"
-if [[ -n "$PRD_SCALAR" ]]; then
-  PRDS+=("$ROOT/$PRD_SCALAR")
-else
-  while IFS= read -r line; do
-    [[ -n "$line" ]] && PRDS+=("$ROOT/$line")
-  done < <(awk '
-    /^[[:space:]]*#/ { next }
-    /^[[:space:]]*prd:[[:space:]]*$/ { in_p=1; next }
-    in_p && /^[[:space:]]*-[[:space:]]*/ {
-      sub(/^[[:space:]]*-[[:space:]]*/, ""); gsub(/["'\'']/, ""); print; next
-    }
-    in_p { exit }
-  ' "$SPEC_FILE")
-  [[ ${#PRDS[@]} -eq 0 ]] && PRDS+=("$ROOT/.harness/prd.md")
-fi
+while IFS= read -r line; do
+  [[ -n "$line" ]] && PRDS+=("$ROOT/$line")
+done < <(collect_paths prd .harness/prd.md)
+[[ ${#PRDS[@]} -eq 0 ]] && PRDS+=("$ROOT/.harness/prd.md")
+
+EVALS=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && EVALS+=("$ROOT/$line")
+done < <(collect_paths eval "")
 
 for prd in "${PRDS[@]}"; do
   [[ -f "$prd" ]] || fail "prd missing on disk: $prd"
@@ -182,32 +190,34 @@ while IFS= read -r line; do
   [[ -n "$line" ]] && fail "REPLACE_ME leftover: $line"
 done < <(grep -Rn "REPLACE_ME" "${SCAN[@]}" 2>/dev/null || true)
 
-# --- tier 3 pairing (doctor does NOT catch this) ------------------------------
+# --- EVALUATE pairing (doctor does NOT catch this) ----------------------------
 
-HAS_CONTRACT=false
-has_active "$SPEC_FILE" '^[[:space:]]*contract:[[:space:]]*[^[:space:]]' && HAS_CONTRACT=true
+HAS_EVAL=false
+[[ ${#EVALS[@]} -gt 0 ]] && HAS_EVAL=true
 
 HAS_VALIDATOR=false
 block_enabled "$SPEC_FILE" "validator" && HAS_VALIDATOR=true
 
-if $HAS_CONTRACT && ! $HAS_VALIDATOR; then
-  fail "tier 3 incomplete: contract present but validator.enabled is not true"
+if $HAS_EVAL && ! $HAS_VALIDATOR; then
+  fail "EVALUATE incomplete: eval present but validator.enabled is not true"
 fi
-if $HAS_VALIDATOR && ! $HAS_CONTRACT; then
-  fail "tier 3 incomplete: validator.enabled true but contract missing"
+if $HAS_VALIDATOR && ! $HAS_EVAL; then
+  fail "EVALUATE incomplete: validator.enabled true but eval missing"
 fi
 
-CONTRACT=""
-if [[ -n "$CONTRACT_REL" ]]; then
-  CONTRACT="$ROOT/$CONTRACT_REL"
-  [[ -f "$CONTRACT" ]] || fail "oracle missing: $CONTRACT"
+if $HAS_EVAL && [[ ${#EVALS[@]} -gt 1 ]] && [[ ${#PRDS[@]} -gt 1 ]] && [[ ${#EVALS[@]} -ne ${#PRDS[@]} ]]; then
+  fail "eval: list must be 1:1 with prd: (${#EVALS[@]} evals, ${#PRDS[@]} prds)"
 fi
+
+for eval_file in "${EVALS[@]}"; do
+  [[ -f "$eval_file" ]] || fail "evaluate checklist missing: $eval_file"
+done
 
 if [[ -n "$PLAY_REL" ]] && [[ ! -f "$ROOT/$PLAY_REL" ]]; then
   fail "playwright smoke missing: $ROOT/$PLAY_REL"
 fi
 
-# --- v1 validator agent block -------------------------------------------------
+# --- leftover validator agent block -------------------------------------------
 
 if awk '
   /^[[:space:]]*#/ { next }
@@ -216,36 +226,43 @@ if awk '
   in_v && /^[[:space:]]*(provider|command|args|model):/ { found=1; exit }
   END { exit found ? 0 : 1 }
 ' "$SPEC_FILE"; then
-  fail "validator carries v1 agent flags — use the 'agent:' preset instead"
+  fail "validator carries leftover agent flags — use the 'agent:' preset instead"
 fi
 
 # --- executableWithTestSigner requires chainValidation ------------------------
 
-if [[ -n "$CONTRACT" ]] && [[ -f "$CONTRACT" ]]; then
-  if grep -E '"executableWithTestSigner"[[:space:]]*:[[:space:]]*true' "$CONTRACT" >/dev/null; then
+for eval_file in "${EVALS[@]}"; do
+  [[ -f "$eval_file" ]] || continue
+  if grep -E '"executableWithTestSigner"[[:space:]]*:[[:space:]]*true' "$eval_file" >/dev/null; then
     block_enabled "$SPEC_FILE" "chainValidation" \
-      || fail "executableWithTestSigner=true in oracle but chainValidation.enabled is not true"
+      || fail "executableWithTestSigner=true in $eval_file but chainValidation.enabled is not true"
   fi
-fi
+done
 
-# --- oracle ↔ PRD traceability ------------------------------------------------
+# --- checklist ↔ PRD traceability ---------------------------------------------
 
-if [[ -n "$CONTRACT" ]] && [[ -f "$CONTRACT" ]]; then
-  # Count occurrences, not matching lines — contracts may be compact JSON.
-  ASSERTIONS=$(grep -oE '"id"[[:space:]]*:[[:space:]]*"C[0-9]+"' "$CONTRACT" 2>/dev/null | wc -l | tr -d ' ')
-  [[ "${ASSERTIONS:-0}" -eq 0 ]] && fail "oracle has no numbered assertions (C1, C2, …)"
+grade_one() {
+  local eval_file="$1"
+  shift
+  local prd_files=("$@")
 
-  CRITICAL=$(grep -oE '"severity"[[:space:]]*:[[:space:]]*"critical"' "$CONTRACT" 2>/dev/null | wc -l | tr -d ' ')
+  local ASSERTIONS CRITICAL JOURNEYS n prd
+  ASSERTIONS=$(grep -oE '"id"[[:space:]]*:[[:space:]]*"E[0-9]+"' "$eval_file" 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "${ASSERTIONS:-0}" -eq 0 ]]; then
+    fail "evaluate checklist has no numbered assertions (E1, E2, …): $eval_file"
+    return
+  fi
+
+  CRITICAL=$(grep -oE '"severity"[[:space:]]*:[[:space:]]*"critical"' "$eval_file" 2>/dev/null | wc -l | tr -d ' ')
   if [[ "${CRITICAL:-0}" -gt 2 ]]; then
-    fail "oracle has ${CRITICAL} critical assertions (prefer <= 2; the run will rarely pass)"
+    fail "$eval_file has ${CRITICAL} critical assertions (prefer <= 2; the run will rarely pass)"
   fi
 
-  grep -E '"failOnUncertainty"' "$CONTRACT" >/dev/null \
-    || fail "oracle missing evaluationRules.failOnUncertainty (fail-closed posture)"
+  grep -E '"failOnUncertainty"' "$eval_file" >/dev/null \
+    || fail "$eval_file missing evaluationRules.failOnUncertainty (fail-closed posture)"
 
-  # Journeys are numbered list items under a "## Journeys" heading.
   JOURNEYS=0
-  for prd in "${PRDS[@]}"; do
+  for prd in "${prd_files[@]}"; do
     [[ -f "$prd" ]] || continue
     n=$(awk '/^##[[:space:]]*Journeys/ { in_j=1; next }
              in_j && /^##/ { exit }
@@ -254,20 +271,18 @@ if [[ -n "$CONTRACT" ]] && [[ -f "$CONTRACT" ]]; then
     JOURNEYS=$((JOURNEYS + n))
   done
   if [[ "$JOURNEYS" -gt 0 ]] && [[ "${ASSERTIONS:-0}" -lt "$JOURNEYS" ]]; then
-    fail "oracle has ${ASSERTIONS} assertion(s) for ${JOURNEYS} PRD journey(s) — some journey is ungraded"
+    fail "$eval_file has ${ASSERTIONS} assertion(s) for ${JOURNEYS} PRD journey(s) — some journey is ungraded"
   fi
-fi
+}
 
-# --- authoring skills must not leak into the generator list -------------------
-
-if awk '
-  /^[[:space:]]*#/ { next }
-  /^[[:space:]]*skills:[[:space:]]*$/ { in_s=1; next }
-  in_s && /^[^[:space:]#-]/ { exit }
-  in_s && /(create-harness-spec|review-harness-spec|harness-spec-anatomy)/ { found=1; exit }
-  END { exit found ? 0 : 1 }
-' "$SPEC_FILE"; then
-  fail "skills: lists an authoring skill — that list is for generator skills only"
+if $HAS_EVAL && [[ ${#EVALS[@]} -eq ${#PRDS[@]} ]] && [[ ${#EVALS[@]} -gt 0 ]]; then
+  i=0
+  while [[ "$i" -lt ${#EVALS[@]} ]]; do
+    [[ -f "${EVALS[$i]}" ]] && grade_one "${EVALS[$i]}" "${PRDS[$i]}"
+    i=$((i + 1))
+  done
+elif $HAS_EVAL && [[ ${#EVALS[@]} -eq 1 ]] && [[ -f "${EVALS[0]}" ]]; then
+  grade_one "${EVALS[0]}" "${PRDS[@]}"
 fi
 
 # --- blind check on every PRD -------------------------------------------------
@@ -275,8 +290,8 @@ fi
 for prd in "${PRDS[@]}"; do
   [[ -f "$prd" ]] || continue
   label="$(basename "$prd")"
-  grep -E '\bC[0-9]+\b' "$prd" >/dev/null \
-    && fail "blind: $label contains an assertion id (C1, C2, …)"
+  grep -E '\b[CE][0-9]+\b' "$prd" >/dev/null \
+    && fail "blind: $label contains an assertion id (E1 / leftover C1, …)"
   grep -E 'howToVerify' "$prd" >/dev/null \
     && fail "blind: $label contains howToVerify"
   grep -Ei 'severity[[:space:]]*:[[:space:]]*(critical|major|minor)' "$prd" >/dev/null \

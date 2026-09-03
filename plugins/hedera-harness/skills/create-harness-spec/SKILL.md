@@ -1,6 +1,6 @@
 ---
 name: create-harness-spec
-description: Create a hedera-harness recipe — PRD, recipe file, validators, and optional tiers — by grilling an idea into a runnable feature spec. Use when the user wants to turn a Hedera feature idea into harness inputs.
+description: Create a hedera-harness recipe — PRD, recipe file, validators, and optional stages — by grilling an idea into a runnable feature spec. Use when the user wants to turn a Hedera feature idea into harness inputs.
 ---
 
 # Create Harness Spec
@@ -12,12 +12,16 @@ Load the shared vocabulary first: read
 [`../harness-spec-anatomy/SKILL.md`](../harness-spec-anatomy/SKILL.md) and its
 [GLOSSARY.md](../harness-spec-anatomy/GLOSSARY.md). Use those terms exactly.
 
-Targets **hedera-harness ≥ 1.2.0** (`schemaVersion: 2`).
+Targets **hedera-harness schemaVersion 3**.
 
-These skills are for authoring. The **recipe file** `skills:` list carries
-generator skills — name domain skills like `hedera-consensus-service`. Keep the
-run **blind**: the PRD carries journeys and outcomes; the **oracle** lives in
-the acceptance contract.
+These skills are for authoring. Recipes do not list skills — product plugins
+from `hedera-skills` are discovered per run and the generator picks. Keep the
+run **blind**: the PRD carries journeys and outcomes; numbered assertions live
+in the **evaluate checklist**.
+
+Works in **Claude Code** (marketplace plugin) and Cursor / other agents that
+load SKILL.md. Prefer `/grilling` when that skill is installed; otherwise use
+the inline protocol — Claude Code typically takes the inline path.
 
 ## Step 1: Locate the target
 
@@ -28,10 +32,10 @@ A recipe lives at `.harness/` inside a scaffolded app. There is no other layout.
 | Cwd is a scaffolded app (Scaffold HBAR or `hedera-harness init`) | Author into its `.harness/` |
 | Cwd is an app without `.harness/` | `hedera-harness init` adopts the harness in place |
 | No app yet | `hedera-harness init <dir>` (optionally `--template <name>`) |
-| Cwd already has `.harness/spec.yaml` | Check `schemaVersion`; if absent or 1, run `hedera-harness migrate .harness/spec.yaml` before editing |
+| Cwd already has `.harness/spec.yaml` | Check `schemaVersion`. If absent, `1`, or `2`, rewrite to v3 (or regenerate with `init` and reapply edits). `hedera-harness migrate` is gone. |
 
-Never hand-edit a v1 recipe into v2 — `migrate` does it losslessly and keeps
-surrounding comments.
+Never treat a v1/v2 recipe as loadable. `contract:` → `eval:`, drop `skills:`,
+set `schemaVersion: 3`.
 
 Paths in the **recipe file** are relative to the project root.
 
@@ -54,16 +58,27 @@ Then:
 
 1. Write `.harness/prd.md` (or one file per **increment** under
    `.harness/prds/`) from the grill. Product-facing only — keep the run **blind**.
-2. Fill `.harness/spec.yaml`. Required: `schemaVersion: 2`, `name`,
+2. Fill `.harness/spec.yaml`. Required: `schemaVersion: 3`, `name`,
    `description`, and `baseline` with a command literally named `install`.
    **Leave every default commented out.** A four-key recipe is complete.
+   Omit `agent:` unless the user wants Cursor (default is Claude).
 3. Write `.harness/validators/static.json` and `.harness/validators/yarn.json`
    against the feature deliverables. Do not assert on `template.json` —
    create-scaffold-hbar removes it when scaffolding.
-4. Set `skills:` only if domain skills genuinely help the generator; names come
-   from the harness `skills-index.json`. Never list authoring skills.
-5. Add tiers 2 / 3 / 3.5 only if the user opted in during the grill — see
-   `harness-spec-anatomy` → [references/tier-strategy.md](../harness-spec-anatomy/references/tier-strategy.md).
+4. Do **not** add a `skills:` list. Mention relevant Hedera services in the PRD
+   so the generator can pick product skills.
+5. Add SMOKE / EVALUATE / CHAIN only if the user opted in during the grill —
+   see `harness-spec-anatomy` → [references/stage-strategy.md](../harness-spec-anatomy/references/stage-strategy.md).
+   If `prd:` is a list and EVALUATE is on, write a matching `eval:` list.
+6. Install the SMOKE host package if you just enabled it — at the **project
+   root**, not only inside a workspace. Doctor imports `playwright` from next
+   to `hedera-harness`, and Yarn `nmHoistingLimits: workspaces` hides
+   `packages/nextjs` installs.
+   - SMOKE → `yarn add -D playwright` (or npm/pnpm equivalent)
+   Skip the add if the root `package.json` already lists it. Do this as part
+   of emit, not as a follow-up after `doctor` fails.
+   CHAIN does **not** need a project install: `@hiero-ledger/sdk` ships with
+   `hedera-harness`. Only the operator env vars are host-provided.
 
 Reconstruct bodies by hand only when the skeleton is unavailable:
 `harness-spec-anatomy` → [references/spec-files.md](../harness-spec-anatomy/references/spec-files.md).
@@ -76,7 +91,7 @@ Two checks, in order:
 # 1. Does the recipe load? (authoritative — schema, defaults, baseline, network)
 hedera-harness doctor .harness/spec.yaml --recipe-only
 
-# 2. Is it coherent across files? (traceability, tier pairing, blind rule)
+# 2. Is it coherent across files? (traceability, stage pairing, blind rule)
 bash <path-to>/harness-spec-anatomy/scripts/check-spec.sh <project-root>
 ```
 
@@ -94,7 +109,7 @@ hedera-harness run .harness/spec.yaml --max-attempts 3
 # or: yarn harness:run
 ```
 
-Point at the harness README for install, agent auth, and tier host
+Point at the harness README for install, agent auth, and stage host
 prerequisites. `hedera-harness doctor` (without `--recipe-only`) checks those.
 Do not expand CLI teaching beyond these next commands.
 
@@ -103,4 +118,4 @@ Do not expand CLI teaching beyond these next commands.
 - [references/grilling.md](references/grilling.md)
 - Companion: `/review-harness-spec`
 - Vocabulary: `/harness-spec-anatomy`
-- Upstream: [docs/authoring-a-recipe.md](https://github.com/hedera-dev/hedera-harness/blob/main/docs/authoring-a-recipe.md)
+- Upstream: [docs/authoring-a-recipe.md](https://github.com/hedera-dev/hedera-harness/blob/dev/docs/authoring-a-recipe.md)

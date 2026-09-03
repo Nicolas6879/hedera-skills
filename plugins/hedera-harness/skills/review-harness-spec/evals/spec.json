@@ -3,8 +3,8 @@
   "evals": [
     {
       "id": 0,
-      "prompt": "Review this harness recipe. .harness/spec.yaml is schemaVersion 2 with name: proof-wall and sets contract: .harness/acceptance-contract.json but has no validator block. The command validator has a command named setup instead of install, and .harness/prd.md contains a line saying 'C2 must pass: the feed renders'.",
-      "expected_output": "A two-axis report that keeps Wiring and Oracle separate, flags the Tier 3 pairing gap (contract without validator.enabled), the missing install command name, and the blind violation from the assertion id leaking into the PRD.",
+      "prompt": "Review this harness recipe. .harness/spec.yaml is schemaVersion 3 with name: proof-wall and sets eval: .harness/eval.json but has no validator block. The command validator has a command named setup instead of install, and .harness/prd.md contains a line saying 'E2 must pass: the feed renders'.",
+      "expected_output": "A two-axis report that keeps Wiring and Eval separate, flags the EVALUATE pairing gap (eval without validator.enabled), the missing install command name, and the blind violation from the assertion id leaking into the PRD.",
       "files": [],
       "checks": [
         {
@@ -14,16 +14,16 @@
           "description": "Report contains a Wiring axis"
         },
         {
-          "name": "has-oracle-axis",
+          "name": "has-eval-axis",
           "type": "regex",
-          "value": "(##\\s*Oracle|Oracle)",
-          "description": "Report contains an Oracle axis"
+          "value": "(##\\s*Eval|Eval)",
+          "description": "Report contains an Eval axis"
         },
         {
-          "name": "flags-tier3-incomplete",
+          "name": "flags-evaluate-incomplete",
           "type": "regex",
-          "value": "(validator\\.enabled|validator.*not.*(true|enabled)|Tier 3 incomplete|contract without)",
-          "description": "Flags contract present but validator.enabled missing"
+          "value": "(validator\\.enabled|validator.*not.*(true|enabled)|EVALUATE incomplete|eval without)",
+          "description": "Flags eval present but validator.enabled missing"
         },
         {
           "name": "flags-install-name",
@@ -34,7 +34,7 @@
         {
           "name": "flags-blind-leak",
           "type": "regex",
-          "value": "(blind|assertion id|C2.*PRD|PRD.*C2)",
+          "value": "(blind|assertion id|E2.*PRD|PRD.*E2)",
           "description": "Flags the assertion id leaking into the PRD"
         },
         {
@@ -47,14 +47,14 @@
     },
     {
       "id": 1,
-      "prompt": "Audit whether this harness recipe is safe to enable chainValidation. The recipe has contract + validator.enabled, chainValidation.enabled true, network: mainnet, and the Playwright smoke asserts twelve pieces of UI copy across six routes.",
-      "expected_output": "Flags mainnet as rejected by the loader, notes that the Playwright tier is too thick and deep UX belongs in the oracle, and covers both axes.",
+      "prompt": "Audit whether this harness recipe is safe to enable chainValidation. The recipe has eval + validator.enabled, chainValidation.enabled true, network: mainnet, and the Playwright smoke asserts twelve pieces of UI copy across six routes.",
+      "expected_output": "Flags mainnet as rejected by the loader, notes that the Playwright stage is too thick and deep UX belongs in the evaluate checklist, and covers both axes.",
       "files": [],
       "checks": [
         {
           "name": "has-both-axes",
           "type": "regex",
-          "value": "(Wiring[\\s\\S]*Oracle|Oracle[\\s\\S]*Wiring)",
+          "value": "(Wiring[\\s\\S]*Eval|Eval[\\s\\S]*Wiring)",
           "description": "Report keeps both axes"
         },
         {
@@ -72,66 +72,60 @@
         {
           "name": "flags-thick-playwright",
           "type": "regex",
-          "value": "(thin|too (thick|much)|belongs in the oracle|deep UX)",
-          "description": "Flags an over-stuffed Playwright tier"
+          "value": "(thin|too (thick|much)|belongs in the (evaluate checklist|checklist)|deep UX)",
+          "description": "Flags an over-stuffed Playwright stage"
         }
       ]
     },
     {
       "id": 2,
-      "prompt": "Check the skills: list on .harness/spec.yaml which includes hedera-consensus-service and create-harness-spec. Is that correct? Also the PRD has three journeys but the acceptance contract only has one assertion.",
-      "expected_output": "Rejects the authoring skill in the generator skills list while keeping the domain skill, and flags that two PRD journeys are ungraded.",
+      "prompt": "Check this recipe: .harness/spec.yaml still has a skills: list with hedera-consensus-service and create-harness-spec. Also the PRD has three journeys but .harness/eval.json only has one assertion.",
+      "expected_output": "Flags that skills: was removed and hard-fails at load (do not keep the domain skill in the recipe either), and flags that two PRD journeys are ungraded.",
       "files": [],
       "checks": [
         {
-          "name": "rejects-author-in-skills",
+          "name": "rejects-skills-key",
           "type": "regex",
-          "value": "(create-harness-spec.*(remove|not|authoring)|authoring skill)",
-          "description": "Rejects the authoring skill in the generator list"
+          "value": "(skills:.*(removed|hard-fail|not listed)|remove skills:)",
+          "description": "Flags that skills: is removed from the recipe"
         },
         {
-          "name": "allows-generator-skill",
-          "type": "contains",
-          "value": "hedera-consensus-service",
-          "description": "Keeps the legitimate domain skill"
+          "name": "rejects-author-skill",
+          "type": "regex",
+          "value": "(create-harness-spec.*(remove|not|authoring)|authoring skill)",
+          "description": "Rejects the authoring skill as a generator skill"
         },
         {
           "name": "journey-traceability",
           "type": "regex",
           "value": "(journey|traceab|ungraded|one assertion|three journeys)",
-          "description": "Flags journeys without oracle coverage"
-        },
-        {
-          "name": "explains-audience",
-          "type": "regex",
-          "value": "(generator|coding agent|vendored|authoring)",
-          "description": "Explains who the skills list is for"
+          "description": "Flags journeys without checklist coverage"
         }
       ]
     },
     {
       "id": 3,
       "prompt": "Review this recipe: .harness/spec.yaml has no schemaVersion, an extend.baseline block, a generator block with cursor CLI args, and logging paths under .harness/runs/.",
-      "expected_output": "Identifies a v1 recipe, stops and recommends hedera-harness migrate before reviewing, and notes that generator, logging and extend were removed in v2 with the agent preset replacing hand-written CLI flags.",
+      "expected_output": "Identifies a pre-v3 recipe, stops and recommends rewriting to schemaVersion 3 (migrate is gone), and notes that generator, logging and extend were removed with the agent preset replacing hand-written CLI flags.",
       "files": [],
       "checks": [
         {
-          "name": "detects-v1",
+          "name": "detects-stale",
           "type": "regex",
-          "value": "(v1|schemaVersion|version 1|older schema)",
-          "description": "Identifies the recipe as pre-v2"
+          "value": "(v1|v2|schemaVersion|older schema|pre-v3|stale)",
+          "description": "Identifies the recipe as pre-v3"
         },
         {
-          "name": "recommends-migrate",
-          "type": "contains",
-          "value": "hedera-harness migrate",
-          "description": "Recommends migrating before review"
+          "name": "no-migrate",
+          "type": "regex",
+          "value": "(migrate is gone|no migrate|rewrite|init)",
+          "description": "Does not treat migrate as the upgrade path"
         },
         {
           "name": "names-removed-keys",
           "type": "regex",
-          "value": "(generator|logging|extend).*(removed|no longer|replaced)",
-          "description": "Names the keys removed in schema v2"
+          "value": "(generator|logging|extend)",
+          "description": "Names keys removed from the current schema"
         },
         {
           "name": "mentions-agent-preset",
@@ -143,8 +137,8 @@
     },
     {
       "id": 4,
-      "prompt": "Review this recipe: schemaVersion 2, baseline with install, and it also sets maxAttempts: 3, prd: .harness/prd.md, validators.static: .harness/validators/static.json, and constraints.packageManager: yarn@3.2.3 which matches the project lockfile. Anything wrong?",
-      "expected_output": "Confirms the recipe is valid and runnable, but notes it is padded: every one of those keys restates a v2 default or a detected value, adding drift surface for no benefit. Recommends removing them.",
+      "prompt": "Review this recipe: schemaVersion 3, baseline with install, and it also sets maxAttempts: 3, prd: .harness/prd.md, validators.static: .harness/validators/static.json, and constraints.packageManager: yarn@3.2.3 which matches the project lockfile. Anything wrong?",
+      "expected_output": "Confirms the recipe is valid and runnable, but notes it is padded: every one of those keys restates a v3 default or a detected value, adding drift surface for no benefit. Recommends removing them.",
       "files": [],
       "checks": [
         {
@@ -157,7 +151,7 @@
           "name": "flags-padding",
           "type": "regex",
           "value": "(default|redundant|padding|restate|unnecessary|drift)",
-          "description": "Flags keys that merely restate v2 defaults"
+          "description": "Flags keys that merely restate v3 defaults"
         },
         {
           "name": "names-defaulted-keys",

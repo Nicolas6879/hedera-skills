@@ -1,6 +1,6 @@
 # Recipe files
 
-Compact tier 0–1 bodies for writing a **recipe** by hand. Terms:
+Compact ASSERT bodies for writing a **recipe** by hand. Terms:
 [GLOSSARY.md](../GLOSSARY.md).
 
 Prefer copying the shipped skeleton when the harness is installed — it is always
@@ -23,17 +23,20 @@ path is the **default** — omit the key unless you are pointing elsewhere.
 |------|-----------|--------------|
 | **Recipe file** | Yes | `.harness/spec.yaml` |
 | PRD | Yes | `.harness/prd.md` |
-| Static validator | Tier 0–1 | `.harness/validators/static.json` |
-| Command validator | Tier 0–1 | `.harness/validators/yarn.json` |
-| Playwright smoke | Tier 2 | `.harness/validators/playwright-smoke.yaml` |
-| **Oracle** | Tier 3 | `.harness/acceptance-contract.json` |
+| Static validator | ASSERT | `.harness/validators/static.json` |
+| Command validator | ASSERT | `.harness/validators/yarn.json` |
+| Playwright smoke | SMOKE | `.harness/validators/playwright-smoke.yaml` |
+| **Evaluate checklist** | EVALUATE | `.harness/eval.json` |
+
+For increments, write `.harness/prds/01-….md` and matching
+`.harness/evals/01-….json`, listed 1:1 in the recipe.
 
 ## The minimum viable recipe
 
 This is complete and correct. Do not pad it.
 
 ```yaml
-schemaVersion: 2
+schemaVersion: 3
 
 name: my-feature
 description: What you want the agent to build in this project.
@@ -52,7 +55,7 @@ Everything below `baseline` is the harness default. Uncomment only to override;
 changing a commented default here changes nothing.
 
 ```yaml
-schemaVersion: 2
+schemaVersion: 3
 
 name: my-feature
 description: In-place feature for an already-scaffolded app.
@@ -67,9 +70,8 @@ baseline:
     - name: build
       command: yarn next:build
 
-# Which coding agent runs the generator. Presets ship with the harness, so flag
-# and model changes arrive with an upgrade instead of an edit here.
-# agent: cursor              # or: claude
+# Default is claude. Uncomment to use Cursor instead.
+# agent: cursor
 
 # Feature description. A list delivers ordered increments onto one branch,
 # each with its own attempt budget; a failing increment stops the sequence.
@@ -79,13 +81,15 @@ baseline:
 #   - .harness/prds/01-foundation.md
 #   - .harness/prds/02-ui.md
 
-# maxAttempts: 3             # repair attempts per run before stopping
+# Evaluate checklist. Scalar grades every slice with one file; list form must
+# be 1:1 with prd: for true incremental grading.
+# eval: .harness/eval.json
+#
+# eval:
+#   - .harness/evals/01-foundation.json
+#   - .harness/evals/02-ui.json
 
-# Generator skills — domain knowledge for the coding agent. Never authoring
-# skills. Names come from the harness skills-index.json.
-# skills:
-#   - hedera-consensus-service
-#   - project-scaffolding
+# maxAttempts: 3             # repair attempts per run before stopping
 
 # validators:
 #   static: .harness/validators/static.json
@@ -122,13 +126,17 @@ baseline:
 # requiredFiles:
 #   - packages/nextjs/app/my-feature/page.tsx
 
-# ── Higher tiers (opt-in) ────────────────────────────────────────────────────
-# See tier-strategy.md. Tier 3 needs both `contract` and `validator.enabled`.
+# ── Higher stages (opt-in) ───────────────────────────────────────────────────
+# See stage-strategy.md. EVALUATE needs both `eval` and `validator.enabled`.
 ```
 
-Removed in v2 — never author these: `seed`, `generator`, `logging`, `extend`,
-`extend.baseline`. If you find them, the recipe predates v2; run
-`hedera-harness migrate .harness/spec.yaml`.
+Do **not** author `skills:`. Product plugins from `hedera-skills` are discovered
+per run; the generator picks. Presence hard-fails at load.
+
+Removed — never author these: `seed`, `generator`, `logging`, `extend`,
+`extend.baseline`, `contract`, `skills`. If you find them, rewrite to v3
+(`schemaVersion: 3`, `contract:` → `eval:`, drop `skills:`) or regenerate with
+`hedera-harness init`.
 
 ## `.harness/validators/static.json`
 
@@ -208,10 +216,10 @@ want a command named `install`.
 See [prd-and-journeys.md](prd-and-journeys.md). Write `.harness/prd.md` with
 Goal / Journeys / Hedera services / Non-goals / Deliverables / Acceptance
 pointer. For **increments**, write one file per increment under
-`.harness/prds/` and list them in order.
+`.harness/prds/` and list them in order, with a matching `eval:` list.
 
-## Tier 2 / 3 / 3.5 bodies
+## SMOKE / EVALUATE / CHAIN bodies
 
 Do not embed them here — they drift. Follow
-[tier-strategy.md](tier-strategy.md) and
-[acceptance-contract-guide.md](acceptance-contract-guide.md).
+[stage-strategy.md](stage-strategy.md) and
+[eval-checklist-guide.md](eval-checklist-guide.md).
