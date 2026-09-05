@@ -102,8 +102,42 @@ State only:
 
 This is the moment that converts "sounds nice" into "this is real and
 buildable" for a skeptical technical stakeholder who might be in the room.
-Do not open code editors or write implementation code during the call — that
-belongs in a follow-up build phase, not the sales conversation.
+The seller should not open code editors or write implementation code
+live — that belongs in a follow-up build phase, not the sales conversation.
+If a visual prototype would help here, that's Phase 4.5, not hand-written code.
+
+## Phase 4.5 — Generate a live visual prototype (optional, high-impact)
+
+A verbal sketch is often not enough for a non-technical buyer to say yes on
+the spot. If there's time left in the call (or as a same-day follow-up), offer
+to generate a quick, clickable mockup of the chosen pattern right there — the
+seller asks for it in plain language, Claude builds and publishes it as an
+Artifact. The seller never writes or touches code; this is not the
+"implementation code" Phase 4 warns against, it's a disposable sales prop.
+
+How Claude should build it:
+- Pick the mockup for the chosen pattern row from
+  `references/prototype-templates.md` — don't design from scratch each time.
+- Fill it with the client's own words and numbers from Phases 1-3 (their
+  company name, the actual document/asset type, the counterparty's role,
+  their real volume) instead of generic placeholders — a demo that uses their
+  language lands as "built for us," not "generic template."
+- Simulate the Hedera step (a fake-but-realistic transaction ID, timestamp,
+  and a mock verification link/QR) — do **not** call a live network or ask
+  the seller for real testnet credentials mid-call. Speed and zero setup risk
+  matter more than realism here.
+- Label the prototype visibly as a simulated preview, not a connected system
+  — a non-technical client should never leave the call believing the pilot is
+  already live.
+- Keep it to the one flow the client picked, end to end (the point of
+  insertion, the one new step, the counterparty verification screen) — not a
+  multi-screen app. It should take one generation pass, not an iteration
+  loop, to stay inside the sales-call pace.
+
+After showing it, ask directly: "is this close to what you pictured for your
+team/counterparty?" and fold the answer into Phase 5's close. If the client
+wants changes, note them for the real pilot build (Section 4 of
+`references/mvp-template.md`, Week 2) rather than iterating the mockup live.
 
 ## Phase 5 — Close
 

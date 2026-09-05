@@ -42,7 +42,9 @@ vague fields is not something they can sign off on.
 
 - **Week 1:** confirm pilot counterparty/client participation, define exactly
   what gets sealed/tokenized/scheduled.
-- **Week 2:** build the script/page.
+- **Week 2:** build the script/page. If a simulated prototype was generated
+  live in the call (SKILL.md Phase 4.5), start from the client feedback on
+  that mockup instead of building from zero.
 - **Week 3:** internal dry run on already-completed cases (retroactive, not
   exposed to the counterparty yet).
 - **Weeks 4-5:** live pilot on new real cases.
